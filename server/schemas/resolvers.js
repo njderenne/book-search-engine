@@ -7,6 +7,15 @@ const resolvers = {
         books: async () => {
             return Book.find();
         },
+        me: async (parent, args, context) => {
+            if(context.user) {
+                const userData = await User.findOne({})
+                    .select('-__v -password')
+                return userData
+            }
+
+            throw new AuthenticationError('Not logged in');
+        }
 
     },
     Mutation: {
@@ -26,12 +35,37 @@ const resolvers = {
             const correctPw = await user.isCorrectPassword(password);
 
             if (!correctPw) {
-                throw new AuthenticationError('Inccorect credentials');
+                throw new AuthenticationError('Incorrect credentials');
             }
 
             const token = signToken(user);
 
             return { user, token };
+        },
+        saveBook: async (parent, {input}, context) => {
+            if (context.user) {
+                const updatedUser = await User.findOneAndUpdate(
+                    { _id: context.user._id},
+                    { $addToSet: {savedBooks: input } },
+                    { new: true }
+                )
+
+                return updatedUser;
+            }
+
+            throw new AuthenticationError('You need to be logged in!');
+        },
+        deleteBook: async (parent, args, context) => {
+            if (context.user) {
+                const updatedUser = await User.findOneAndUpdate(
+                    { _id: context.user._id},
+                    { $pull: {savedBooks: { bookId: args.bookId } } },
+                    { new: true }
+                );
+                return updatedUser;
+            }
+
+            throw new AuthenticationError('You need to be logged in!');
         }
     }
 };
